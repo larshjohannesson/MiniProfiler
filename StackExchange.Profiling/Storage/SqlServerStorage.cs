@@ -32,6 +32,16 @@
         /// </summary>
         private static readonly string LoadSqlBatch = string.Join("\n", LoadSqlStatements.Select(pair => pair.Value));
 
+
+        /// <summary>
+        /// Lets you query your profiling data and separate it on specific applications
+        /// </summary>
+        private string Application;
+        /// <summary>
+        /// Lets you query your profiling data over specific application versions
+        /// </summary>
+        private string ApplicationVersion;
+
         /// <summary>
         /// Initialises a new instance of the <see cref="SqlServerStorage"/> class. 
         /// Initializes a new instance of the <see cref="SqlServerStorage"/> class. 
@@ -39,9 +49,17 @@
         /// <param name="connectionString">
         /// The connection String.
         /// </param>
-        public SqlServerStorage(string connectionString)
+        /// <param name="applicationVersion">
+        /// This voluntary string has no effect besides making it possible to query your profiling data based on application
+        /// </param>
+        /// <param name="applicationVersion">
+        /// This voluntary string has no effect besides making it possible to query your profiling data based on application version
+        /// </param>
+        public SqlServerStorage(string connectionString, string application = null, string applicationVersion = null)
             : base(connectionString)
         {
+            Application         = application;  
+            ApplicationVersion  = applicationVersion;
         }
 
         /// <summary>
@@ -80,7 +98,9 @@
              HasTrivialTimings,
              HasAllTrivialTimings,
              TrivialDurationThresholdMilliseconds,
-             HasUserViewed)
+             HasUserViewed,
+             Application,
+             ApplicationVersion)
 select       @Id,
              @Name,
              @Started,
@@ -95,7 +115,9 @@ select       @Id,
              @HasTrivialTimings,
              @HasAllTrivialTimings,
              @TrivialDurationThresholdMilliseconds,
-             @HasUserViewed
+             @HasUserViewed,
+             @Application,
+             @ApplicationVersion
 where not exists (select 1 from MiniProfilers where Id = @Id)"; // this syntax works on both mssql and sqlite
 
             using (var conn = GetOpenConnection())
@@ -118,7 +140,9 @@ where not exists (select 1 from MiniProfilers where Id = @Id)"; // this syntax w
                             HasTrivialTimings = profiler.HasTrivialTimings,
                             HasAllTrivialTimings = profiler.HasAllTrivialTimings,
                             TrivialDurationThresholdMilliseconds = profiler.TrivialDurationThresholdMilliseconds,
-                            HasUserViewed = profiler.HasUserViewed
+                            HasUserViewed = profiler.HasUserViewed,
+                            Application = Application,
+                            ApplicationVersion = ApplicationVersion,
                         });
 
                 if (insertCount > 0)
@@ -545,7 +569,9 @@ where not exists (select 1 from MiniProfilers where Id = @Id)"; // this syntax w
                      HasTrivialTimings                    bit not null,
                      HasAllTrivialTimings                 bit not null,
                      TrivialDurationThresholdMilliseconds decimal(5, 1) null,
-                     HasUserViewed                        bit not null
+                     HasUserViewed                        bit not null,
+                     [Application]                        nvarchar(100) null,
+                     ApplicationVersion                   nvarchar(100) null
                   );
                 
                 -- RowIds here are used to enforce an ordering and storage locality - really, the only id that matters for our querying is the MiniProfilerId
